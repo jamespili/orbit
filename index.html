@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -386,6 +387,8 @@ const lerp=(a,b,t)=>a+(b-a)*t;
 const dist=(ax,ay,bx,by)=>Math.hypot(ax-bx,ay-by);
 const $=id=>document.getElementById(id);
 const px=v=>v*devicePixelRatio; // logical→canvas pixels
+const orbitIdleR=()=>px(Math.min(190,Math.max(120,Math.min(window.innerWidth,window.innerHeight)*.34)));
+const orbitHoldR=()=>orbitIdleR()*.4;
 
 // ════════════════════════════════════════
 //  HUD
@@ -828,7 +831,7 @@ function startGame(mode){
   score=0;hp=5;maxHp=5;gems=0;combo=0;wave=0;totalKills=0;totalGems=0;
   shieldOn=false;slowOn=false;magnetOn=false;bh=null;
   enemies=[];bullets=[];parts=[];drops=[];
-  angle=0;orbitR=px(190);frame=0;gTime=0;paused=false;shopOpen=false;
+  angle=0;orbitR=orbitIdleR();frame=0;gTime=0;paused=false;shopOpen=false;
   rapidOn=false;multiOn=false;rapidT=0;multiT=0;
   skills={shield:0,slow:0,clear:0,magnet:0,black:0};
   $('mode-pill').textContent=mode==='endless'?'无尽':'闯关';
@@ -867,7 +870,7 @@ function loop(){
   if(comboT>0)comboT--;else if(combo>0){combo--;showCombo();}
 
   // orbit
-  const tR=holding?px(76):px(190);
+  const tR=holding?orbitHoldR():orbitIdleR();
   orbitR=lerp(orbitR,tR,.1);
   angle+=((.046+wave*.0008)*sp*(holding?.65:1));
   const ppx=CX+Math.cos(angle)*orbitR,ppy=CY+Math.sin(angle)*orbitR;
@@ -1037,11 +1040,16 @@ function loop(){
 // ════════════════════════════════════════
 //  INPUT — mobile-first
 // ════════════════════════════════════════
+function isUIEl(el){
+  return el&&(
+    el.closest('#skill-bar')||
+    el.id==='pause-btn'||
+    el.closest('#gem-btn')||
+    el.closest('.scr:not(.off)')
+  );
+}
 function isUI(e){
-  return e.target.closest('#skill-bar')||
-         e.target.id==='pause-btn'||
-         e.target.closest('#gem-btn')||
-         e.target.closest('.scr:not(.off)');
+  return isUIEl(e.target);
 }
 function pDown(e){
   if(isUI(e)||!gActive||paused||shopOpen)return;
@@ -1052,21 +1060,19 @@ function pUp(){holding=false;}
 // Touch: handle multiple touches, only track first
 let _touchId=null;
 window.addEventListener('touchstart',e=>{
-  e.preventDefault();
   if(_touchId===null){
     const t=e.changedTouches[0];
-    _touchId=t.identifier;
-    // Check if touch landed on a UI element
     const el=document.elementFromPoint(t.clientX,t.clientY);
-    if(el&&(el.closest('#skill-bar')||el.closest('#gem-btn')||el.id==='pause-btn'||el.closest('.scr:not(.off)')))return;
+    if(isUIEl(el))return;
+    e.preventDefault();
+    _touchId=t.identifier;
     pDown(e);
   }
 },{passive:false});
 
 window.addEventListener('touchend',e=>{
-  e.preventDefault();
   for(const t of e.changedTouches){
-    if(t.identifier===_touchId){_touchId=null;pUp();break;}
+    if(t.identifier===_touchId){e.preventDefault();_touchId=null;pUp();break;}
   }
 },{passive:false});
 
